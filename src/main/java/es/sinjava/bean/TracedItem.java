@@ -1,17 +1,20 @@
 package es.sinjava.bean;
 
 import java.time.LocalDateTime;
-import java.util.Date;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.Id;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity(name = "trace")
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 public class TracedItem {
 
 	@Id
@@ -28,7 +31,7 @@ public class TracedItem {
 	private String methodName;
 
 	@Column(nullable = false)
-	private long lap;
+	private Long lap;
 	
 	@Column(nullable = false)
 	private LocalDateTime created ;

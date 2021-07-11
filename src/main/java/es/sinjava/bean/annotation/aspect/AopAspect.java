@@ -7,50 +7,51 @@ import java.time.LocalDateTime;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
 
 import es.sinjava.bean.TracedItem;
-import es.sinjava.service.TraceService;
 
 @Aspect
 @Component
 public class AopAspect {
 
-	private TracedItem trace;
+	private String host;
 
-	//Volcado sobre la bbdd
-	private TraceService traceService;
-	
-	//Volcado sobre el servicio rest
-	
-	
+	private String url;
 
-	public AopAspect(@Autowired TraceService traceServiceIn) {
-		traceService = traceServiceIn;
-		trace = new TracedItem();
+	// Volcado sobre el servicio rest
+	private RestTemplate restTemplate = new RestTemplate();
+
+	public AopAspect(@Value("${audit.url}") String urlAudit) {
+
+		url = urlAudit;
 		try {
-			trace.setHost(InetAddress.getLocalHost().getHostAddress());
+			host = InetAddress.getLocalHost().getHostAddress();
 		} catch (UnknownHostException e) {
 			// si falla le damos el nombre del thread
-			trace.setHost(Thread.currentThread().getName());
+			host = Thread.currentThread().getName();
 		}
 	}
 
 	@Around("@annotation(es.sinjava.bean.annotation.SmartAudit)")
 	public Object auditing(ProceedingJoinPoint joinPoint) throws Throwable {
-		long start = System.nanoTime();
+		long start = System.currentTimeMillis();
 
 		Object proceed = joinPoint.proceed();
 
-		long executionTime = (System.nanoTime() - start )/ 1_000_000;
-
-		trace.setId(null);
+		long executionTime = System.currentTimeMillis() - start;
+		TracedItem trace = new TracedItem();
+		trace.setHost(host);
 		trace.setClsName(joinPoint.getSignature().getDeclaringTypeName());
 		trace.setMethodName(joinPoint.getSignature().getName().replaceAll(trace.getClsName(), ""));
 		trace.setLap(executionTime);
 		trace.setCreated(LocalDateTime.now());
-		traceService.save(trace);
+
+		HttpEntity<TracedItem> request = new HttpEntity<>(trace);
+		restTemplate.postForObject(url, request, TracedItem.class);
 		return proceed;
 	}
 
